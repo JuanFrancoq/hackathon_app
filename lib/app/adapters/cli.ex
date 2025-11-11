@@ -1,14 +1,11 @@
 defmodule HackathonApp.Adapters.CLI do
   @moduledoc """
   Interfaz de línea de comandos para interactuar con el sistema Hackathon.
-  Permite ejecutar comandos como /teams, /project, /join, /chat y /help.
+  Permite ejecutar comandos como /user, /teams, /project, /chat y /help.
   """
 
-  alias HackathonApp.Services.{GestionEquipos, GestionProyectos, GestionChat}
+  alias HackathonApp.Services.{GestionEquipos, GestionProyectos, GestionChat, GestionUsuarios}
 
-  # ==========================================================
-  # Inicio del sistema
-  # ==========================================================
   def start() do
     IO.puts("=== Bienvenido al Sistema Hackathon ===")
     nombre_usuario = IO.gets("Por favor ingresa tu nombre: ") |> String.trim()
@@ -16,9 +13,6 @@ defmodule HackathonApp.Adapters.CLI do
     loop(nombre_usuario)
   end
 
-  # ==========================================================
-  # Bucle principal
-  # ==========================================================
   defp loop(nombre_usuario) do
     comando = IO.gets("> ") |> String.trim()
 
@@ -26,6 +20,10 @@ defmodule HackathonApp.Adapters.CLI do
       ["/help"] ->
         mostrar_ayuda()
         loop(nombre_usuario)
+
+      ["/user"] ->
+        IO.puts("\nEntrando al módulo de usuarios...\n")
+        user_loop(nombre_usuario)
 
       ["/teams"] ->
         IO.puts("\nEntrando al módulo de gestión de equipos...\n")
@@ -48,9 +46,62 @@ defmodule HackathonApp.Adapters.CLI do
     end
   end
 
-  # ==========================================================
-  # LOOP DE TEAMS
-  # ==========================================================
+  defp user_loop(nombre_usuario) do
+    input = IO.gets("[usuarios]> ") |> String.trim()
+
+    cond do
+      input == "/listar" ->
+        GestionUsuarios.listar_usuarios()
+        user_loop(nombre_usuario)
+
+      String.starts_with?(input, "/listar_rol ") ->
+        [_cmd, rol] = String.split(input, " ")
+        GestionUsuarios.listar_por_rol(rol)
+        user_loop(nombre_usuario)
+
+      input == "/crear" ->
+        crear_usuario_interactivo()
+        user_loop(nombre_usuario)
+
+      String.starts_with?(input, "/join ") ->
+        case String.split(input, " ") do
+          ["/join", usuario_id, equipo_id] ->
+            GestionUsuarios.asignar_a_equipo(usuario_id, equipo_id)
+          _ ->
+            IO.puts("Uso correcto: /join <usuario_id> <equipo_id>")
+        end
+        user_loop(nombre_usuario)
+
+      input == "/salir" ->
+        IO.puts("Saliendo del módulo de usuarios...\n")
+        loop(nombre_usuario)
+
+      input == "/help" ->
+        mostrar_ayuda_usuarios()
+        user_loop(nombre_usuario)
+
+      input == "" ->
+        user_loop(nombre_usuario)
+
+      true ->
+        IO.puts("Comando no reconocido. Escribe /help para ver los comandos disponibles.")
+        user_loop(nombre_usuario)
+    end
+  end
+
+  defp crear_usuario_interactivo() do
+    IO.puts("\n=== Crear nuevo usuario ===")
+    id = IO.gets("ID del usuario: ") |> String.trim()
+    nombre = IO.gets("Nombre del usuario: ") |> String.trim()
+    rol = IO.gets("Rol (participante o mentor): ") |> String.trim() |> String.downcase()
+
+    case rol do
+      "participante" -> GestionUsuarios.crear_usuario(id, nombre, "participante")
+      "mentor" -> GestionUsuarios.crear_usuario(id, nombre, "mentor")
+      _ -> IO.puts("⚠️ Rol inválido. Usa 'participante' o 'mentor'.")
+    end
+  end
+
   defp teams_loop(nombre_usuario) do
     input = IO.gets("[equipos]> ") |> String.trim()
 
@@ -78,6 +129,10 @@ defmodule HackathonApp.Adapters.CLI do
 
       input == "" ->
         teams_loop(nombre_usuario)
+
+      true ->
+        IO.puts("Comando no reconocido. Usa /help para ver opciones.")
+        teams_loop(nombre_usuario)
     end
   end
 
@@ -96,9 +151,6 @@ defmodule HackathonApp.Adapters.CLI do
     GestionEquipos.crear_equipo(equipo_id, nombre, miembros)
   end
 
-  # ==========================================================
-  # LOOP DE PROYECTOS
-  # ==========================================================
   defp projects_loop(nombre_usuario) do
     input = IO.gets("[proyectos]> ") |> String.trim()
 
@@ -131,6 +183,10 @@ defmodule HackathonApp.Adapters.CLI do
 
       input == "" ->
         projects_loop(nombre_usuario)
+
+      true ->
+        IO.puts("Comando no reconocido. Usa /help para ver opciones.")
+        projects_loop(nombre_usuario)
     end
   end
 
@@ -141,7 +197,7 @@ defmodule HackathonApp.Adapters.CLI do
     titulo = IO.gets("Título del proyecto: ") |> String.trim()
     descripcion = IO.gets("Descripción: ") |> String.trim()
     categoria = IO.gets("Categoría: ") |> String.trim()
-    estado = IO.gets("Estado inicial (opcional, por defecto 'En progreso'): ") |> String.trim()
+    estado = IO.gets("Estado inicial (por defecto 'En progreso'): ") |> String.trim()
 
     estado_final = if estado == "", do: "En progreso", else: estado
     GestionProyectos.crear_proyecto(id, equipo_id, titulo, descripcion, categoria, estado_final)
@@ -154,9 +210,6 @@ defmodule HackathonApp.Adapters.CLI do
     GestionProyectos.actualizar_proyecto(id, nuevo_estado, nueva_desc)
   end
 
-  # ==========================================================
-  # CHAT LOOP
-  # ==========================================================
   defp abrir_chat(nombre_usuario, equipo_id) do
     IO.puts("\nEntrando al chat del equipo #{equipo_id}...\n")
     GestionChat.listar_mensajes(equipo_id)
@@ -192,43 +245,29 @@ defmodule HackathonApp.Adapters.CLI do
     end
   end
 
-  # ==========================================================
-  # AYUDA GLOBAL
-  # ==========================================================
   defp mostrar_ayuda() do
     IO.puts("""
     === Comandos principales ===
+    /user                 → Entrar al módulo de usuarios
     /teams                → Entrar al módulo de gestión de equipos
     /project              → Entrar al módulo de gestión de proyectos
     /chat <equipo_id>     → Entrar al chat de un equipo
     /exit                 → Salir del sistema
-
-    === Dentro de /teams ===
-    /listar               → Mostrar equipos registrados
-    /crear                → Crear un nuevo equipo
-    /eliminar <id>        → Eliminar un equipo
-    /help                 → Mostrar esta ayuda
-    /salir                → Volver al menú principal
-
-    === Dentro de /project ===
-    /listar               → Mostrar proyectos registrados
-    /crear                → Crear un nuevo proyecto
-    /actualizar <id>      → Editar estado o descripción
-    /eliminar <id>        → Eliminar un proyecto
-    /help                 → Mostrar ayuda
-    /salir                → Volver al menú principal
-
-    === Dentro del chat ===
-    /ver                  → Ver todos los mensajes
-    /eliminar <id>        → Eliminar un mensaje
-    /limpiar              → Borrar todos los mensajes del equipo
-    /salir                → Salir del chat
     """)
   end
 
-  # ==========================================================
-  # AYUDA DEL MÓDULO DE PROYECTOS
-  # ==========================================================
+  defp mostrar_ayuda_usuarios() do
+    IO.puts("""
+    === Comandos disponibles en [usuarios] ===
+    /crear                → Crear un nuevo usuario
+    /listar               → Listar todos los usuarios
+    /listar_rol <rol>     → Filtrar usuarios por rol (mentor o participante)
+    /join <usuario_id> <equipo_id> → Asignar participante a un equipo
+    /help                 → Mostrar esta ayuda
+    /salir                → Volver al menú principal
+    """)
+  end
+
   defp mostrar_ayuda_proyectos() do
     IO.puts("""
     === Comandos disponibles en [proyectos] ===
@@ -241,9 +280,6 @@ defmodule HackathonApp.Adapters.CLI do
     """)
   end
 
-  # ==========================================================
-  # AYUDA DEL MÓDULO DE TEAMS
-  # ==========================================================
   defp mostrar_ayuda_teams() do
     IO.puts("""
     === Comandos disponibles en [equipos] ===

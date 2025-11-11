@@ -1,7 +1,7 @@
 defmodule HackathonApp.Services.GestionEquipos do
   @moduledoc """
-  Servicio para gestionar equipos: crear, listar y eliminar registros
-  almacenados en el archivo CSV.
+  Servicio para gestionar equipos: crear, listar, eliminar y unir miembros.
+  Los datos se almacenan en el archivo CSV `equipos.csv`.
   """
 
   alias HackathonApp.Domain.Equipo
@@ -9,10 +9,6 @@ defmodule HackathonApp.Services.GestionEquipos do
 
   @archivo "equipos.csv"
 
-  @doc """
-  Crea un nuevo equipo y lo guarda en el archivo CSV.
-  Si ya existe un equipo con el mismo ID, muestra una advertencia.
-  """
   def crear_equipo(equipo_id, nombre, miembros) do
     equipos_actuales = RepositorioArchivo.leer_datos(@archivo)
 
@@ -27,8 +23,7 @@ defmodule HackathonApp.Services.GestionEquipos do
     else
       equipo = Equipo.nuevo(equipo_id, nombre, miembros)
 
-      linea =
-        "#{equipo.equipo_id},#{equipo.nombre},#{Enum.join(equipo.miembros, "|")}"
+      linea = "#{equipo.equipo_id},#{equipo.nombre},#{Enum.join(equipo.miembros, "|")}"
 
       nuevas_lineas = equipos_actuales ++ [linea]
       RepositorioArchivo.guardar_datos(@archivo, nuevas_lineas)
@@ -38,13 +33,6 @@ defmodule HackathonApp.Services.GestionEquipos do
     end
   end
 
-  # ==========================================================
-  # Listar equipos
-  # ==========================================================
-  @doc """
-  Muestra por consola todos los equipos guardados en el archivo CSV.
-  Si una línea tiene formato incorrecto, se avisa sin detener el programa.
-  """
   def listar_equipos() do
     equipos = RepositorioArchivo.leer_datos(@archivo)
 
@@ -66,12 +54,6 @@ defmodule HackathonApp.Services.GestionEquipos do
     end
   end
 
-  # ==========================================================
-  # Eliminar un equipo por ID
-  # ==========================================================
-  @doc """
-  Elimina un equipo del archivo CSV por su ID.
-  """
   def eliminar_equipo(equipo_id) do
     equipos = RepositorioArchivo.leer_datos(@archivo)
 
@@ -86,6 +68,41 @@ defmodule HackathonApp.Services.GestionEquipos do
       IO.puts("Equipo #{equipo_id} eliminado correctamente.")
     else
       IO.puts("No se encontró el equipo con ID #{equipo_id}.")
+    end
+  end
+
+  @doc """
+  Agrega un nuevo miembro (usuario) a un equipo existente en el archivo CSV.
+  """
+  def agregar_miembro_a_equipo(equipo_id, nombre_usuario) do
+    equipos = RepositorioArchivo.leer_datos(@archivo)
+
+    case Enum.find(equipos, fn linea ->
+           [id | _] = String.split(linea, ",")
+           id == to_string(equipo_id)
+         end) do
+      nil ->
+        IO.puts("No se encontró un equipo con ID #{equipo_id}.")
+
+      linea ->
+        [id, nombre_equipo, miembros_str] = String.split(linea, ",")
+        miembros = String.split(miembros_str, "|")
+
+        if nombre_usuario in miembros do
+          IO.puts("El usuario #{nombre_usuario} ya pertenece al equipo #{nombre_equipo}.")
+        else
+          nuevos_miembros = miembros ++ [nombre_usuario]
+          nueva_linea = "#{id},#{nombre_equipo},#{Enum.join(nuevos_miembros, "|")}"
+
+          nuevos_datos =
+            Enum.map(equipos, fn l ->
+              if l == linea, do: nueva_linea, else: l
+            end)
+
+          RepositorioArchivo.guardar_datos(@archivo, nuevos_datos)
+
+          IO.puts("#{nombre_usuario} se unió al equipo #{nombre_equipo} correctamente.")
+        end
     end
   end
 end
