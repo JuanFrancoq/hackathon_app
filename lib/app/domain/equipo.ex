@@ -1,9 +1,9 @@
 defmodule HackathonApp.Domain.Equipo do
-  defstruct [:id, :nombre, :miembros]
+  defstruct [:equipo_id, :nombre, :miembros]
 
-  def nuevo(id, nombre, miembros) do
+  def nuevo(equipo_id, nombre, miembros) do
     %__MODULE__{
-      id: id,
+      equipo_id: equipo_id,
       nombre: nombre,
       miembros: miembros
     }

@@ -1,41 +1,90 @@
 defmodule HackathonApp.Services.GestionProyectos do
   @moduledoc """
-  Servicio básico para gestionar proyectos: crear y listar usando un archivo CSV.
+  Servicio para gestionar proyectos: crear, listar, actualizar y eliminar proyectos
+  almacenados en el archivo proyectos.csv.
   """
 
   alias HackathonApp.Domain.Proyecto
   alias HackathonApp.Adapters.RepositorioArchivo
 
-  # Crea un nuevo proyecto y lo guarda en data/proyectos.csv
-  def crear_proyecto(id, equipo_id, titulo, descripcion, categoria, estado) do
-    proyecto = Proyecto.nuevo(id, equipo_id, titulo, descripcion, categoria, estado)
+  @archivo "proyectos.csv"
 
-    # Convertir el proyecto en una línea CSV
-    linea =
-      "#{proyecto.id},#{proyecto.equipo_id},#{proyecto.titulo},#{proyecto.descripcion},#{proyecto.categoria},#{proyecto.estado}"
+  def crear_proyecto(id, equipo_id, titulo, descripcion, categoria, estado \\ "En progreso") do
+    proyectos_actuales = RepositorioArchivo.leer_datos(@archivo)
 
-    # Leer los proyectos existentes
-    proyectos_actuales = RepositorioArchivo.leer_datos("proyectos.csv")
+    ya_existe =
+      Enum.any?(proyectos_actuales, fn linea ->
+        [pid | _] = String.split(linea, ",")
+        pid == to_string(id)
+      end)
 
-    # Agregar el nuevo proyecto al final
-    nuevas_lineas = proyectos_actuales ++ [linea]
+    if ya_existe do
+      IO.puts("Ya existe un proyecto con ID #{id}.")
+    else
+      proyecto = Proyecto.nuevo(id, equipo_id, titulo, descripcion, categoria, estado)
 
-    # Guardar todos los proyectos actualizados
-    RepositorioArchivo.guardar_datos("proyectos.csv", nuevas_lineas)
+      linea =
+        "#{proyecto.id},#{proyecto.equipo_id},#{proyecto.titulo},#{proyecto.descripcion},#{proyecto.categoria},#{proyecto.estado}"
 
-    IO.puts("Proyecto '#{titulo}' creado y guardado en proyectos.csv")
-    proyecto
+      nuevas_lineas = proyectos_actuales ++ [linea]
+      RepositorioArchivo.guardar_datos(@archivo, nuevas_lineas)
+
+      IO.puts("Proyecto '#{titulo}' creado correctamente y guardado en #{@archivo}.")
+      proyecto
+    end
   end
 
-  # Lista todos los proyectos registrados en el CSV
   def listar_proyectos() do
-    proyectos = RepositorioArchivo.leer_datos("proyectos.csv")
+    proyectos = RepositorioArchivo.leer_datos(@archivo)
 
-    IO.puts("Proyectos registrados:")
+    IO.puts("=== Proyectos registrados ===")
 
-    Enum.each(proyectos, fn linea ->
-      [id, equipo_id, titulo, descripcion, categoria, estado] = String.split(linea, ",")
-      IO.puts("- #{titulo} [ID: #{id}] - #{descripcion} (Equipo: #{equipo_id}, Categoria: #{categoria}, Estado: #{estado})")
-    end)
+    if Enum.empty?(proyectos) do
+      IO.puts("No hay proyectos registrados.")
+    else
+      Enum.each(proyectos, fn linea ->
+        case String.split(linea, ",") do
+          [id, equipo_id, titulo, descripcion, categoria, estado] ->
+            IO.puts("- #{titulo} [ID: #{id}]")
+            IO.puts("Descripción: #{descripcion}")
+            IO.puts("Equipo: #{equipo_id} | Categoría: #{categoria} | Estado: #{estado}\n")
+          _ ->
+            IO.puts("Línea inválida: #{linea}")
+        end
+      end)
+    end
+  end
+
+  def actualizar_proyecto(id, nuevo_estado, nueva_descripcion) do
+    proyectos = RepositorioArchivo.leer_datos(@archivo)
+
+    nuevos_proyectos =
+      Enum.map(proyectos, fn linea ->
+        case String.split(linea, ",") do
+          [pid, equipo_id, titulo, _desc, categoria, _estado] when pid == id ->
+            "#{pid},#{equipo_id},#{titulo},#{nueva_descripcion},#{categoria},#{nuevo_estado}"
+          _ ->
+            linea
+        end
+      end)
+
+    RepositorioArchivo.guardar_datos(@archivo, nuevos_proyectos)
+    IO.puts("Proyecto #{id} actualizado correctamente.")
+  end
+
+  def eliminar_proyecto(id) do
+    proyectos = RepositorioArchivo.leer_datos(@archivo)
+
+    nuevos =
+      Enum.reject(proyectos, fn linea ->
+        String.starts_with?(linea, "#{id},")
+      end)
+
+    if length(nuevos) < length(proyectos) do
+      RepositorioArchivo.guardar_datos(@archivo, nuevos)
+      IO.puts("Proyecto #{id} eliminado correctamente.")
+    else
+      IO.puts("No se encontró el proyecto con ID #{id}.")
+    end
   end
 end
