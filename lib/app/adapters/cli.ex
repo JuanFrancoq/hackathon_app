@@ -259,6 +259,16 @@ defmodule HackathonApp.Adapters.CLI do
         actualizar_proyecto_interactivo(id)
         projects_loop(nombre_usuario)
 
+      String.starts_with?(input, "/buscar_estado ") ->
+        [_cmd, estado] = String.split(input, " ")
+        GestionProyectos.buscar_por_estado(estado)
+        projects_loop(nombre_usuario)
+
+      String.starts_with?(input, "/buscar_categoria ") ->
+        [_cmd, categoria] = String.split(input, " ")
+        GestionProyectos.buscar_por_categoria(categoria)
+        projects_loop(nombre_usuario)
+
       String.starts_with?(input, "/eliminar ") ->
         [_cmd, id] = String.split(input, " ")
         GestionProyectos.eliminar_proyecto(id)
@@ -367,12 +377,14 @@ defmodule HackathonApp.Adapters.CLI do
   defp mostrar_ayuda_proyectos() do
     IO.puts("""
     === Comandos [proyectos] ===
-    /listar       → Listar proyectos
-    /crear        → Crear proyecto
-    /actualizar <id> → Actualizar proyecto
-    /eliminar <id> → Eliminar proyecto
-    /help         → Ver ayuda
-    /salir        → Volver
+    /listar                 → Listar proyectos
+    /crear                  → Crear proyecto
+    /actualizar <id>        → Actualizar proyecto
+    /eliminar <id>          → Eliminar proyecto
+    /buscar_estado <estado> → Buscar proyectos por estado
+    /buscar_categoria <cat> → Buscar proyectos por categoría
+    /help                   → Ver ayuda
+    /salir                  → Volver
     """)
   end
 end
