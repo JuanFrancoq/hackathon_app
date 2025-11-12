@@ -1,7 +1,7 @@
 defmodule HackathonApp.Services.GestionProyectos do
   @moduledoc """
-  Servicio para gestionar proyectos: crear, listar, actualizar y eliminar proyectos
-  almacenados en el archivo proyectos.csv.
+  Servicio para gestionar proyectos: crear, listar, actualizar y eliminar.
+  Los datos se almacenan en 'proyectos.csv'.
   """
 
   alias HackathonApp.Domain.Proyecto
@@ -9,31 +9,28 @@ defmodule HackathonApp.Services.GestionProyectos do
 
   @archivo "proyectos.csv"
 
+  # Crear un proyecto
   def crear_proyecto(id, equipo_id, titulo, descripcion, categoria, estado \\ "En progreso") do
-    proyectos_actuales = RepositorioArchivo.leer_datos(@archivo)
+    proyectos = RepositorioArchivo.leer_datos(@archivo)
 
-    ya_existe =
-      Enum.any?(proyectos_actuales, fn linea ->
+    existe =
+      Enum.any?(proyectos, fn linea ->
         [pid | _] = String.split(linea, ",")
         pid == to_string(id)
       end)
 
-    if ya_existe do
+    if existe do
       IO.puts("Ya existe un proyecto con ID #{id}.")
     else
       proyecto = Proyecto.nuevo(id, equipo_id, titulo, descripcion, categoria, estado)
-
-      linea =
-        "#{proyecto.id},#{proyecto.equipo_id},#{proyecto.titulo},#{proyecto.descripcion},#{proyecto.categoria},#{proyecto.estado}"
-
-      nuevas_lineas = proyectos_actuales ++ [linea]
-      RepositorioArchivo.guardar_datos(@archivo, nuevas_lineas)
-
-      IO.puts("Proyecto '#{titulo}' creado correctamente y guardado en #{@archivo}.")
+      linea = "#{proyecto.id},#{proyecto.equipo_id},#{proyecto.titulo},#{proyecto.descripcion},#{proyecto.categoria},#{proyecto.estado}"
+      RepositorioArchivo.guardar_datos(@archivo, proyectos ++ [linea])
+      IO.puts("Proyecto '#{titulo}' creado correctamente.")
       proyecto
     end
   end
 
+  # Listar proyectos
   def listar_proyectos() do
     proyectos = RepositorioArchivo.leer_datos(@archivo)
 
@@ -45,9 +42,14 @@ defmodule HackathonApp.Services.GestionProyectos do
       Enum.each(proyectos, fn linea ->
         case String.split(linea, ",") do
           [id, equipo_id, titulo, descripcion, categoria, estado] ->
-            IO.puts("- #{titulo} [ID: #{id}]")
-            IO.puts("Descripción: #{descripcion}")
-            IO.puts("Equipo: #{equipo_id} | Categoría: #{categoria} | Estado: #{estado}\n")
+            IO.puts("""
+            - #{titulo} [ID: #{id}]
+              Descripción: #{descripcion}
+              Equipo: #{equipo_id}
+              Categoría: #{categoria}
+              Estado: #{estado}
+            """)
+
           _ ->
             IO.puts("Línea inválida: #{linea}")
         end
@@ -55,10 +57,11 @@ defmodule HackathonApp.Services.GestionProyectos do
     end
   end
 
+  # Actualizar estado o descripción de un proyecto
   def actualizar_proyecto(id, nuevo_estado, nueva_descripcion) do
     proyectos = RepositorioArchivo.leer_datos(@archivo)
 
-    nuevos_proyectos =
+    nuevos =
       Enum.map(proyectos, fn linea ->
         case String.split(linea, ",") do
           [pid, equipo_id, titulo, _desc, categoria, _estado] when pid == id ->
@@ -68,10 +71,11 @@ defmodule HackathonApp.Services.GestionProyectos do
         end
       end)
 
-    RepositorioArchivo.guardar_datos(@archivo, nuevos_proyectos)
-    IO.puts("Proyecto #{id} actualizado correctamente.")
+    RepositorioArchivo.guardar_datos(@archivo, nuevos)
+    IO.puts("Proyecto #{id} actualizado.")
   end
 
+  # Eliminar un proyecto
   def eliminar_proyecto(id) do
     proyectos = RepositorioArchivo.leer_datos(@archivo)
 
@@ -82,7 +86,7 @@ defmodule HackathonApp.Services.GestionProyectos do
 
     if length(nuevos) < length(proyectos) do
       RepositorioArchivo.guardar_datos(@archivo, nuevos)
-      IO.puts("Proyecto #{id} eliminado correctamente.")
+      IO.puts("Proyecto #{id} eliminado.")
     else
       IO.puts("No se encontró el proyecto con ID #{id}.")
     end
