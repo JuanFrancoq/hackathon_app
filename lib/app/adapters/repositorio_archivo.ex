@@ -1,26 +1,57 @@
 defmodule HackathonApp.Adapters.RepositorioArchivo do
   @moduledoc """
-  Módulo simple para leer y escribir datos en archivos CSV.
+  Cliente local y remoto para guardar y leer datos utilizando el nodo servidor.
   """
 
-  # Guarda una lista de líneas en un archivo CSV
+  @nombre_nodo_servidor :servidor@Pc_Juan
+  @proceso_servidor :servidor_datos
+
+  # ==============================================================
+  # GUARDAR (llama SIEMPRE al servidor)
+  # ==============================================================
   def guardar_datos(nombre_archivo, lineas) do
+    mensaje = {:guardar, nombre_archivo, lineas}
 
-    contenido = Enum.join(lineas, "\n")
+    case call_servidor(mensaje) do
+      :ok ->
+        IO.puts("Servidor: datos guardados en #{nombre_archivo}")
 
-    File.write!("data/#{nombre_archivo}", contenido)
-
-    IO.puts("Datos guardados en data/#{nombre_archivo}")
+      {:error, :no_conectado} ->
+        IO.puts("ERROR: No se pudo contactar al nodo servidor #{@nombre_nodo_servidor}")
+    end
   end
 
+  # ==============================================================
+  # LEER (también desde el servidor)
+  # ==============================================================
   def leer_datos(nombre_archivo) do
-    ruta = "data/#{nombre_archivo}"
+    mensaje = {:leer, nombre_archivo}
 
-    if File.exists?(ruta) do
-      File.read!(ruta)
-      |> String.split("\n", trim: true)
+    case call_servidor(mensaje) do
+      {:ok, lineas} ->
+        lineas
+
+      {:error, :no_conectado} ->
+        IO.puts("ERROR: No se pudo contactar al nodo servidor #{@nombre_nodo_servidor}")
+        []
+    end
+  end
+
+  # ==============================================================
+  # Enviar mensaje al servidor
+  # ==============================================================
+
+  defp call_servidor(mensaje) do
+    if Node.connect(@nombre_nodo_servidor) do
+      send({@proceso_servidor, @nombre_nodo_servidor}, {self(), mensaje})
+
+      receive do
+        respuesta -> respuesta
+      after
+        2000 -> {:error, :no_respuesta}
+      end
     else
-      []
+      {:error, :no_conectado}
     end
   end
 end
