@@ -12,16 +12,19 @@ defmodule HackathonApp.Adapters.RepositorioArchivo do
   # GUARDAR (llama SIEMPRE al servidor)
   # ==============================================================
   def guardar_datos(nombre_archivo, lineas) do
-    mensaje = {:guardar, nombre_archivo, lineas}
+  mensaje = {:guardar, nombre_archivo, lineas}
 
-    case call_servidor(mensaje) do
-      :ok ->
-        IO.puts("Servidor: datos guardados en #{nombre_archivo}")
+  case call_servidor(mensaje) do
+    :ok ->
+      IO.puts("Servidor: datos guardados en #{nombre_archivo}")
 
-      {:error, :no_conectado} ->
-        IO.puts("ERROR: No se pudo contactar al nodo servidor #{@nombre_nodo_servidor}")
-    end
+    {:error, :no_conectado} ->
+      IO.puts("ERROR: No se pudo contactar al nodo servidor #{@nombre_nodo_servidor}")
+
+    {:error, :no_respuesta} ->
+      IO.puts("ERROR: El servidor no respondió a tiempo")
   end
+end
 
   # ==============================================================
   # LEER (también desde el servidor)
