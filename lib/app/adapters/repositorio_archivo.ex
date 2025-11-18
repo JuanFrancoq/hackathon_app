@@ -1,4 +1,6 @@
+# Módulo encargado de leer y guardar datos en archivos CSV para el sistema
 defmodule HackathonApp.Adapters.RepositorioArchivo do
+
   @moduledoc """
   Cliente local y remoto para guardar y leer datos utilizando el nodo servidor.
   """
