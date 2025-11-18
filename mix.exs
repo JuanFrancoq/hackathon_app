@@ -20,7 +20,8 @@ defmodule HackathonApp.MixProject do
 
   defp deps do
     [
-      # dependencias aquí si más adelante usas
+      # Dependencias del proyecto.
+      # {:ex_doc, "~> 0.30", only: :dev, runtime: false}
     ]
   end
 end
