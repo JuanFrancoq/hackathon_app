@@ -1,3 +1,5 @@
+# Modulo principal que inicia la aplicacion
+
 defmodule HackathonApp do
   @moduledoc """
   Application principal del sistema Hackathon.
