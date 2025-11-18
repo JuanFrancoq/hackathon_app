@@ -27,7 +27,7 @@ defmodule HackathonApp.Services.GestionChat do
     IO.puts("[#{usuario_nombre}] → equipo #{equipo_id}: '#{contenido}'")
     mensaje
   end
-
+  # Listar mensajes enviados en el equipo, con hora, fecha y id
   def listar_mensajes(equipo_id) do
     mensajes = RepositorioArchivo.leer_datos(@archivo)
 
