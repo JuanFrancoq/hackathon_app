@@ -11,6 +11,7 @@ defmodule HackathonApp.Adapters.CLI do
     GestionUsuarios,
     GestionMentoria
   }
+
   # ==========================================================
   # INICIO
   # ==========================================================
@@ -82,6 +83,11 @@ defmodule HackathonApp.Adapters.CLI do
         crear_usuario_interactivo()
         user_loop(nombre_usuario)
 
+      String.starts_with?(input, "/eliminar ") ->
+        [_cmd, id_o_nombre] = String.split(input, " ", parts: 2)
+        GestionUsuarios.eliminar_usuario(id_o_nombre)
+        user_loop(nombre_usuario)
+
       input == "/mentor" ->
         mentor_loop(nombre_usuario)
 
@@ -134,15 +140,14 @@ defmodule HackathonApp.Adapters.CLI do
         end
         participante_loop(nombre_usuario)
 
-      input == "/salir" ->
-        user_loop(nombre_usuario)
+      input == "/salir" -> user_loop(nombre_usuario)
 
       input == "/help" ->
         IO.puts("""
         === Comandos de Participante ===
-        /listar                  → Ver todos los participantes
+        /listar                   → Ver todos los participantes
         /join_equipo <uid> <eid> → Unirse a un equipo
-        /salir                   → Volver al menú de usuarios
+        /salir                    → Volver al menú de usuarios
         """)
         participante_loop(nombre_usuario)
 
@@ -163,7 +168,7 @@ defmodule HackathonApp.Adapters.CLI do
         GestionUsuarios.listar_por_rol("mentor")
         mentor_loop(nombre_usuario)
 
-      input == "/proyectos" ->
+      String.starts_with?(input, "/proyectos") ->
         GestionProyectos.listar_proyectos()
         mentor_loop(nombre_usuario)
 
@@ -184,8 +189,7 @@ defmodule HackathonApp.Adapters.CLI do
         GestionMentoria.eliminar_mentoria(retro_id)
         mentor_loop(nombre_usuario)
 
-      input == "/salir" ->
-        user_loop(nombre_usuario)
+      input == "/salir" -> user_loop(nombre_usuario)
 
       input == "/help" ->
         IO.puts("""
@@ -225,16 +229,12 @@ defmodule HackathonApp.Adapters.CLI do
         GestionEquipos.eliminar_equipo(id)
         teams_loop(nombre_usuario)
 
-      input == "/salir" ->
-        loop(nombre_usuario)
+      input == "/salir" -> loop(nombre_usuario)
 
-      input == "/help" ->
-        mostrar_ayuda_teams()
-        teams_loop(nombre_usuario)
+      input == "/help" -> mostrar_ayuda_teams(); teams_loop(nombre_usuario)
 
       true ->
-        IO.puts("Comando no reconocido.")
-        teams_loop(nombre_usuario)
+        IO.puts("Comando no reconocido."); teams_loop(nombre_usuario)
     end
   end
 
@@ -243,7 +243,6 @@ defmodule HackathonApp.Adapters.CLI do
     equipo_id = IO.gets("ID del equipo: ") |> String.trim()
     nombre = IO.gets("Nombre del equipo: ") |> String.trim()
     miembros_str = IO.gets("Miembros (separados por comas): ") |> String.trim()
-
     miembros = miembros_str |> String.split(",") |> Enum.map(&String.trim/1)
     GestionEquipos.crear_equipo(equipo_id, nombre, miembros)
   end
@@ -255,44 +254,27 @@ defmodule HackathonApp.Adapters.CLI do
     input = IO.gets("[proyectos]> ") |> String.trim()
 
     cond do
-      input == "/listar" ->
-        GestionProyectos.listar_proyectos()
-        projects_loop(nombre_usuario)
-
-      input == "/crear" ->
-        crear_proyecto_interactivo()
-        projects_loop(nombre_usuario)
-
+      input == "/listar" -> GestionProyectos.listar_proyectos(); projects_loop(nombre_usuario)
+      input == "/crear" -> crear_proyecto_interactivo(); projects_loop(nombre_usuario)
       String.starts_with?(input, "/actualizar ") ->
         [_cmd, id] = String.split(input, " ")
         actualizar_proyecto_interactivo(id)
         projects_loop(nombre_usuario)
-
       String.starts_with?(input, "/buscar_estado ") ->
         [_cmd, estado] = String.split(input, " ")
         GestionProyectos.buscar_por_estado(estado)
         projects_loop(nombre_usuario)
-
       String.starts_with?(input, "/buscar_categoria ") ->
-        [_cmd, categoria] = String.split(input, " ")
-        GestionProyectos.buscar_por_categoria(categoria)
+        [_cmd, cat] = String.split(input, " ")
+        GestionProyectos.buscar_por_categoria(cat)
         projects_loop(nombre_usuario)
-
       String.starts_with?(input, "/eliminar ") ->
         [_cmd, id] = String.split(input, " ")
         GestionProyectos.eliminar_proyecto(id)
         projects_loop(nombre_usuario)
-
-      input == "/salir" ->
-        loop(nombre_usuario)
-
-      input == "/help" ->
-        mostrar_ayuda_proyectos()
-        projects_loop(nombre_usuario)
-
-      true ->
-        IO.puts("Comando no reconocido.")
-        projects_loop(nombre_usuario)
+      input == "/salir" -> loop(nombre_usuario)
+      input == "/help" -> mostrar_ayuda_proyectos(); projects_loop(nombre_usuario)
+      true -> IO.puts("Comando no reconocido."); projects_loop(nombre_usuario)
     end
   end
 
@@ -328,21 +310,14 @@ defmodule HackathonApp.Adapters.CLI do
 
     cond do
       input == "/salir" -> :ok
-      input == "/ver" ->
-        GestionChat.listar_mensajes(equipo_id)
-        chat_loop(nombre_usuario, equipo_id)
+      input == "/ver" -> GestionChat.listar_mensajes(equipo_id); chat_loop(nombre_usuario, equipo_id)
       String.starts_with?(input, "/eliminar ") ->
         [_cmd, id] = String.split(input, " ")
         GestionChat.eliminar_mensaje(id)
         chat_loop(nombre_usuario, equipo_id)
-      input == "/limpiar" ->
-        GestionChat.eliminar_todos_de_equipo(equipo_id)
-        chat_loop(nombre_usuario, equipo_id)
-      input != "" ->
-        GestionChat.enviar_mensaje(equipo_id, nombre_usuario, input)
-        chat_loop(nombre_usuario, equipo_id)
-      true ->
-        chat_loop(nombre_usuario, equipo_id)
+      input == "/limpiar" -> GestionChat.eliminar_todos_de_equipo(equipo_id); chat_loop(nombre_usuario, equipo_id)
+      input != "" -> GestionChat.enviar_mensaje(equipo_id, nombre_usuario, input); chat_loop(nombre_usuario, equipo_id)
+      true -> chat_loop(nombre_usuario, equipo_id)
     end
   end
 
@@ -365,6 +340,7 @@ defmodule HackathonApp.Adapters.CLI do
     === Comandos [usuarios] ===
     /crear          → Crear un nuevo usuario
     /listar         → Listar todos los usuarios
+    /eliminar <id/nombre> → Eliminar un usuario
     /mentor         → Entrar al módulo mentor
     /participante   → Entrar al módulo participante
     /help           → Ver ayuda

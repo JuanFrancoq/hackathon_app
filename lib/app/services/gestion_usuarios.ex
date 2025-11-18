@@ -9,7 +9,9 @@ defmodule HackathonApp.Services.GestionUsuarios do
 
   @archivo "usuarios.csv"
 
+  # ==========================================================
   # Crear usuario
+  # ==========================================================
   def crear_usuario(id, nombre, rol) do
     usuarios = RepositorioArchivo.leer_datos(@archivo)
 
@@ -37,7 +39,9 @@ defmodule HackathonApp.Services.GestionUsuarios do
     end
   end
 
+  # ==========================================================
   # Listar todos los usuarios
+  # ==========================================================
   def listar_usuarios() do
     usuarios = RepositorioArchivo.leer_datos(@archivo)
 
@@ -53,7 +57,9 @@ defmodule HackathonApp.Services.GestionUsuarios do
     end
   end
 
+  # ==========================================================
   # Listar usuarios por rol
+  # ==========================================================
   def listar_por_rol(rol_buscado) do
     usuarios = RepositorioArchivo.leer_datos(@archivo)
 
@@ -75,7 +81,9 @@ defmodule HackathonApp.Services.GestionUsuarios do
     end
   end
 
+  # ==========================================================
   # Obtener usuario por ID
+  # ==========================================================
   def obtener_usuario(id) do
     usuarios = RepositorioArchivo.leer_datos(@archivo)
 
@@ -93,7 +101,9 @@ defmodule HackathonApp.Services.GestionUsuarios do
     end
   end
 
+  # ==========================================================
   # Obtener usuario por nombre
+  # ==========================================================
   def obtener_usuario_por_nombre(nombre) do
     usuarios = RepositorioArchivo.leer_datos(@archivo)
 
@@ -111,7 +121,9 @@ defmodule HackathonApp.Services.GestionUsuarios do
     end)
   end
 
+  # ==========================================================
   # Asignar usuario a equipo (solo participantes)
+  # ==========================================================
   def asignar_a_equipo(usuario_id, equipo_id) do
     case obtener_usuario(usuario_id) do
       nil ->
@@ -148,15 +160,16 @@ defmodule HackathonApp.Services.GestionUsuarios do
   end
 
   # ==========================================================
-  # NUEVO: Eliminar usuario por ID o nombre
+  # Eliminar usuario por ID o nombre
   # ==========================================================
   def eliminar_usuario(id_o_nombre) do
     usuarios = RepositorioArchivo.leer_datos(@archivo)
 
-    {filtrados, eliminados} =
-      Enum.split_with(usuarios, fn linea ->
+    # Mantener solo los usuarios que NO coinciden con el ID o nombre dado
+    filtrados =
+      Enum.reject(usuarios, fn linea ->
         [uid, uname | _] = String.split(linea, ",")
-        uid != to_string(id_o_nombre) and String.downcase(uname) != String.downcase(id_o_nombre)
+        uid == to_string(id_o_nombre) or String.downcase(uname) == String.downcase(id_o_nombre)
       end)
 
     if length(usuarios) == length(filtrados) do
@@ -164,7 +177,7 @@ defmodule HackathonApp.Services.GestionUsuarios do
       :error
     else
       RepositorioArchivo.guardar_datos(@archivo, filtrados)
-      IO.puts("Usuario(s) '#{id_o_nombre}' eliminado(s) correctamente.")
+      IO.puts("Usuario '#{id_o_nombre}' eliminado correctamente.")
       :ok
     end
   end
