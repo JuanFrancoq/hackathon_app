@@ -9,7 +9,7 @@ defmodule HackathonApp.Services.GestionEquipos do
 
   @archivo "equipos.csv"
 
-  # Crear un nuevo equipo
+  # Crea un equipo nuevo con su ID, nombre y lista inicial de miembros
   def crear_equipo(equipo_id, nombre, miembros) do
     equipos_actuales = RepositorioArchivo.leer_datos(@archivo)
 
@@ -30,7 +30,7 @@ defmodule HackathonApp.Services.GestionEquipos do
     end
   end
 
-  # Listar equipos
+  # Lista todos los equipos registrados en el archivo
   def listar_equipos() do
     equipos = RepositorioArchivo.leer_datos(@archivo)
 
@@ -52,7 +52,7 @@ defmodule HackathonApp.Services.GestionEquipos do
     end
   end
 
-  # Eliminar un equipo por ID
+  # Elimina un equipo según su ID
   def eliminar_equipo(equipo_id) do
     equipos = RepositorioArchivo.leer_datos(@archivo)
 
@@ -70,7 +70,7 @@ defmodule HackathonApp.Services.GestionEquipos do
     end
   end
 
-  # Agregar un nuevo miembro a un equipo
+  # Agrega un miembro nuevo al equipo si no pertenece actualmente
   def agregar_miembro_a_equipo(equipo_id, nombre_usuario) do
     equipos = RepositorioArchivo.leer_datos(@archivo)
 
