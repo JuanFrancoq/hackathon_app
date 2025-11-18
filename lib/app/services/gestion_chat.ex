@@ -9,6 +9,7 @@ defmodule HackathonApp.Services.GestionChat do
 
   @archivo "mensajes.csv"
 
+  # Envía un mensaje y lo guarda en el archivo de mensajes
   def enviar_mensaje(equipo_id, usuario_nombre, contenido) do
     id = System.unique_integer([:positive])
     fecha = DateTime.utc_now() |> DateTime.to_string()
