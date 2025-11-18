@@ -16,10 +16,11 @@ defmodule HackathonApp.Adapters.CLI do
   # INICIO
   # ==========================================================
   def start() do
+    {:ok, _pid} = HackathonApp.Services.GestionUsuarios.start_link(nil)
     {:ok, _pid} = HackathonApp.Services.GestionProyectos.start_link(nil)
     {:ok, _pid} = HackathonApp.Services.GestionEquipos.start_link(nil)
     {:ok, _pid} = HackathonApp.Services.GestionChat.start_link(nil)
-    IO.puts("=== Sistema Hackathon ===")
+    IO.puts("=== Sistema Proyecto ===")
     nombre_usuario = IO.gets("Ingresa tu nombre: ") |> String.trim()
     IO.puts("Bienvenido, #{nombre_usuario}. Usa /help para ver los comandos disponibles.")
     loop(nombre_usuario)

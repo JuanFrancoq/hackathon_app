@@ -2,23 +2,64 @@ defmodule HackathonApp.Services.GestionUsuarios do
   @moduledoc """
   Servicio para gestionar usuarios: creación, listado, filtrado, asignación a equipos y eliminación.
   Soporta roles: participante y mentor.
+  Persistencia híbrida: local y concurrente mediante Agent.
   """
 
+  use Agent
   alias HackathonApp.Domain.Usuario
   alias HackathonApp.Adapters.RepositorioArchivo
 
   @archivo "usuarios.csv"
 
   # ==========================================================
-  # Crear usuario
+  # AGENT PARA PERSISTENCIA CONCURRENTE
+  # ==========================================================
+  def start_link(_) do
+    Agent.start_link(fn ->
+      case RepositorioArchivo.leer_datos(@archivo) do
+        {:ok, datos} -> datos
+        {:error, _razon} -> []
+        datos when is_list(datos) -> datos
+      end
+    end, name: __MODULE__)
+  end
+
+  # ==========================================================
+  # FUNCIONES INTERNAS PARA AGENT
+  # ==========================================================
+  defp guardar_linea(linea) do
+    Agent.update(__MODULE__, fn usuarios ->
+      nuevos = usuarios ++ [linea]
+      RepositorioArchivo.guardar_datos(@archivo, nuevos)
+      nuevos
+    end)
+  end
+
+  defp eliminar_linea(id_o_nombre) do
+    Agent.update(__MODULE__, fn usuarios ->
+      nuevos =
+        Enum.reject(usuarios, fn linea ->
+          [uid, uname | _] = String.split(linea, ",")
+          uid == id_o_nombre or String.downcase(uname) == String.downcase(id_o_nombre)
+        end)
+
+      RepositorioArchivo.guardar_datos(@archivo, nuevos)
+      nuevos
+    end)
+  end
+
+  defp obtener_todos(), do: Agent.get(__MODULE__, & &1)
+
+  # ==========================================================
+  # CREAR USUARIO
   # ==========================================================
   def crear_usuario(id, nombre, rol) do
-    usuarios = RepositorioArchivo.leer_datos(@archivo)
+    usuarios = obtener_todos()
 
     existe =
       Enum.any?(usuarios, fn linea ->
         [uid, uname | _] = String.split(linea, ",")
-        uid == to_string(id) or String.downcase(uname) == String.downcase(nombre)
+        uid == id or String.downcase(uname) == String.downcase(nombre)
       end)
 
     cond do
@@ -33,20 +74,19 @@ defmodule HackathonApp.Services.GestionUsuarios do
       true ->
         usuario = Usuario.nuevo(id, nombre, rol)
         linea = "#{usuario.id},#{usuario.nombre},#{usuario.rol}"
-        RepositorioArchivo.guardar_datos(@archivo, usuarios ++ [linea])
+        guardar_linea(linea)
         IO.puts("Usuario '#{nombre}' con rol #{rol} creado correctamente.")
         usuario
     end
   end
 
   # ==========================================================
-  # Listar todos los usuarios
+  # LISTAR USUARIOS
   # ==========================================================
   def listar_usuarios() do
-    usuarios = RepositorioArchivo.leer_datos(@archivo)
+    usuarios = obtener_todos()
 
     IO.puts("=== Usuarios registrados ===")
-
     if Enum.empty?(usuarios) do
       IO.puts("No se encontraron usuarios registrados.")
     else
@@ -58,10 +98,10 @@ defmodule HackathonApp.Services.GestionUsuarios do
   end
 
   # ==========================================================
-  # Listar usuarios por rol
+  # LISTAR POR ROL
   # ==========================================================
   def listar_por_rol(rol_buscado) do
-    usuarios = RepositorioArchivo.leer_datos(@archivo)
+    usuarios = obtener_todos()
 
     filtrados =
       Enum.filter(usuarios, fn linea ->
@@ -70,7 +110,6 @@ defmodule HackathonApp.Services.GestionUsuarios do
       end)
 
     IO.puts("=== Usuarios con rol #{rol_buscado} ===")
-
     if Enum.empty?(filtrados) do
       IO.puts("No hay usuarios con ese rol.")
     else
@@ -82,14 +121,14 @@ defmodule HackathonApp.Services.GestionUsuarios do
   end
 
   # ==========================================================
-  # Obtener usuario por ID
+  # OBTENER USUARIO POR ID
   # ==========================================================
   def obtener_usuario(id) do
-    usuarios = RepositorioArchivo.leer_datos(@archivo)
+    usuarios = obtener_todos()
 
     case Enum.find(usuarios, fn linea ->
            [uid | _] = String.split(linea, ",")
-           uid == to_string(id)
+           uid == id
          end) do
       nil ->
         IO.puts("No existe un usuario con el ID #{id}.")
@@ -102,10 +141,10 @@ defmodule HackathonApp.Services.GestionUsuarios do
   end
 
   # ==========================================================
-  # Obtener usuario por nombre
+  # OBTENER USUARIO POR NOMBRE
   # ==========================================================
   def obtener_usuario_por_nombre(nombre) do
-    usuarios = RepositorioArchivo.leer_datos(@archivo)
+    usuarios = obtener_todos()
 
     Enum.find_value(usuarios, fn linea ->
       case String.split(linea, ",") do
@@ -122,7 +161,7 @@ defmodule HackathonApp.Services.GestionUsuarios do
   end
 
   # ==========================================================
-  # Asignar usuario a equipo (solo participantes)
+  # ASIGNAR USUARIO A EQUIPO
   # ==========================================================
   def asignar_a_equipo(usuario_id, equipo_id) do
     case obtener_usuario(usuario_id) do
@@ -160,25 +199,21 @@ defmodule HackathonApp.Services.GestionUsuarios do
   end
 
   # ==========================================================
-  # Eliminar usuario por ID o nombre
+  # ELIMINAR USUARIO
   # ==========================================================
   def eliminar_usuario(id_o_nombre) do
-    usuarios = RepositorioArchivo.leer_datos(@archivo)
+    usuarios = obtener_todos()
 
-    # Mantener solo los usuarios que NO coinciden con el ID o nombre dado
-    filtrados =
-      Enum.reject(usuarios, fn linea ->
-        [uid, uname | _] = String.split(linea, ",")
-        uid == to_string(id_o_nombre) or String.downcase(uname) == String.downcase(id_o_nombre)
-      end)
-
-    if length(usuarios) == length(filtrados) do
-      IO.puts("No se encontró ningún usuario con ID o nombre '#{id_o_nombre}'.")
-      :error
-    else
-      RepositorioArchivo.guardar_datos(@archivo, filtrados)
+    if Enum.any?(usuarios, fn linea ->
+         [uid, uname | _] = String.split(linea, ",")
+         uid == id_o_nombre or String.downcase(uname) == String.downcase(id_o_nombre)
+       end) do
+      eliminar_linea(id_o_nombre)
       IO.puts("Usuario '#{id_o_nombre}' eliminado correctamente.")
       :ok
+    else
+      IO.puts("No se encontró ningún usuario con ID o nombre '#{id_o_nombre}'.")
+      :error
     end
   end
 end
