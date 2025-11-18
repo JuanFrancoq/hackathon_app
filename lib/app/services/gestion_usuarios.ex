@@ -19,14 +19,21 @@ defmodule HackathonApp.Services.GestionUsuarios do
         uid == to_string(id) or String.downcase(uname) == String.downcase(nombre)
       end)
 
-    if existe do
-      IO.puts("No se pudo crear el usuario: ya existe un usuario con ese ID o nombre.")
-    else
-      usuario = Usuario.nuevo(id, nombre, rol)
-      linea = "#{usuario.id},#{usuario.nombre},#{usuario.rol}"
-      RepositorioArchivo.guardar_datos(@archivo, usuarios ++ [linea])
-      IO.puts("Usuario '#{nombre}' con rol #{rol} creado correctamente.")
-      usuario
+    cond do
+      existe ->
+        IO.puts("No se pudo crear el usuario: ya existe un usuario con ese ID o nombre.")
+        nil
+
+      rol not in ["participante", "mentor"] ->
+        IO.puts("El rol '#{rol}' no es válido. Solo se permiten participante o mentor.")
+        nil
+
+      true ->
+        usuario = Usuario.nuevo(id, nombre, rol)
+        linea = "#{usuario.id},#{usuario.nombre},#{usuario.rol}"
+        RepositorioArchivo.guardar_datos(@archivo, usuarios ++ [linea])
+        IO.puts("Usuario '#{nombre}' con rol #{rol} creado correctamente.")
+        usuario
     end
   end
 
