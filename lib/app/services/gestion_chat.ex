@@ -65,6 +65,8 @@ defmodule HackathonApp.Services.GestionChat do
     end
   end
 
+  # Elimina todos los mensajes de un equipo específico
+
   def eliminar_todos_de_equipo(equipo_id) do
     mensajes = RepositorioArchivo.leer_datos(@archivo)
 
