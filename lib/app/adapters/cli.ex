@@ -11,11 +11,12 @@ defmodule HackathonApp.Adapters.CLI do
     GestionUsuarios,
     GestionMentoria
   }
-
   # ==========================================================
   # INICIO
   # ==========================================================
   def start() do
+    # Inicia el Agent de chat
+    {:ok, _pid} = HackathonApp.Services.GestionChat.start_link(nil)
     IO.puts("=== Sistema Hackathon ===")
     nombre_usuario = IO.gets("Ingresa tu nombre: ") |> String.trim()
     IO.puts("Bienvenido, #{nombre_usuario}. Usa /help para ver los comandos disponibles.")

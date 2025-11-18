@@ -14,7 +14,13 @@ defmodule HackathonApp.Services.GestionChat do
   # AGENT PARA PERSISTENCIA CONCURRENTE
   # ==========================================================
   def start_link(_) do
-    Agent.start_link(fn -> RepositorioArchivo.leer_datos(@archivo) end, name: __MODULE__)
+    Agent.start_link(fn ->
+      case RepositorioArchivo.leer_datos(@archivo) do
+        {:ok, datos} -> datos
+        {:error, _razon} -> []   # inicia vacío si falla
+        datos when is_list(datos) -> datos  # en caso de que devuelva directamente la lista
+      end
+    end, name: __MODULE__)
   end
 
   defp agregar_linea(linea) do
@@ -79,7 +85,6 @@ defmodule HackathonApp.Services.GestionChat do
           if eq_id == to_string(equipo_id) do
             IO.puts("[#{fecha}] (ID #{id}) #{usuario}: #{contenido}")
           end
-
         _ -> :ignore
       end
     end)
