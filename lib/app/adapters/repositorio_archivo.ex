@@ -1,52 +1,45 @@
-# Módulo encargado de leer y guardar datos en archivos CSV para el sistema
 defmodule HackathonApp.Adapters.RepositorioArchivo do
-
   @moduledoc """
-  Cliente local y remoto para guardar y leer datos utilizando el nodo servidor.
+  Cliente local y remoto para guardar y leer datos.
+  Guardado silencioso, lectura solo cuando se solicita.
   """
 
   @nombre_nodo_servidor :servidor@Pc_Juan
   @proceso_servidor :servidor_datos
 
-  # ==============================================================
-  # GUARDAR (llama SIEMPRE al servidor)
-  # ==============================================================
+  # Guardar datos (silencioso)
   def guardar_datos(nombre_archivo, lineas) do
-  mensaje = {:guardar, nombre_archivo, lineas}
+    # Guardar local siempre
+    File.write!(nombre_archivo, Enum.join(lineas, "\n"))
 
-  case call_servidor(mensaje) do
-    :ok ->
-      IO.puts("Servidor: datos guardados en #{nombre_archivo}")
+    # Intentar guardar en servidor, ignorando errores de salida
+    mensaje = {:guardar, nombre_archivo, lineas}
 
-    {:error, :no_conectado} ->
-      IO.puts("ERROR: No se pudo contactar al nodo servidor #{@nombre_nodo_servidor}")
-
-    {:error, :no_respuesta} ->
-      IO.puts("ERROR: El servidor no respondió a tiempo")
+    case call_servidor(mensaje) do
+      :ok -> :ok
+      {:error, _} -> :ok
+    end
   end
-end
 
-  # ==============================================================
-  # LEER (también desde el servidor)
-  # ==============================================================
+  # Leer datos
   def leer_datos(nombre_archivo) do
-  mensaje = {:leer, nombre_archivo}
+    mensaje = {:leer, nombre_archivo}
 
-  case call_servidor(mensaje) do
-    {:ok, lineas} -> lineas
-    {:error, :no_conectado} ->
-      IO.puts("ERROR: No se pudo contactar al nodo servidor #{@nombre_nodo_servidor}")
-      []
-    {:error, :no_respuesta} ->
-      IO.puts("ERROR: El servidor no respondió a tiempo")
-      []
+    case call_servidor(mensaje) do
+      {:ok, lineas} -> lineas
+      {:error, _} -> leer_local(nombre_archivo)
+    end
   end
-end
 
-  # ==============================================================
+  # Lectura local
+  defp leer_local(nombre_archivo) do
+    case File.read(nombre_archivo) do
+      {:ok, contenido} -> String.split(contenido, "\n", trim: true)
+      {:error, _} -> []
+    end
+  end
+
   # Enviar mensaje al servidor
-  # ==============================================================
-
   defp call_servidor(mensaje) do
     if Node.connect(@nombre_nodo_servidor) do
       send({@proceso_servidor, @nombre_nodo_servidor}, {self(), mensaje})
