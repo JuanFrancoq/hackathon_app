@@ -37,6 +37,14 @@ defmodule HackathonApp.Adapters.CLI do
         IO.puts("Entrando al módulo de usuarios...")
         user_loop(nombre_usuario)
 
+      ["/user", "mentor"] ->
+        IO.puts("Entrando al módulo de mentores...")
+        mentor_loop(nombre_usuario)
+
+      ["/user", "participante"] ->
+        IO.puts("Entrando al módulo de participantes...")
+        participante_loop(nombre_usuario)
+
       ["/teams"] ->
         IO.puts("Entrando al módulo de equipos...")
         teams_loop(nombre_usuario)
