@@ -20,12 +20,12 @@ defmodule HackathonApp.Services.GestionUsuarios do
       end)
 
     if existe do
-      IO.puts("Ya existe un usuario con ese ID o nombre.")
+      IO.puts("No se pudo crear el usuario: ya existe un usuario con ese ID o nombre.")
     else
       usuario = Usuario.nuevo(id, nombre, rol)
       linea = "#{usuario.id},#{usuario.nombre},#{usuario.rol}"
       RepositorioArchivo.guardar_datos(@archivo, usuarios ++ [linea])
-      IO.puts("Usuario '#{nombre}' (#{rol}) creado correctamente.")
+      IO.puts("Usuario '#{nombre}' con rol #{rol} creado correctamente.")
       usuario
     end
   end
@@ -37,7 +37,7 @@ defmodule HackathonApp.Services.GestionUsuarios do
     IO.puts("=== Usuarios registrados ===")
 
     if Enum.empty?(usuarios) do
-      IO.puts("No hay usuarios registrados.")
+      IO.puts("No se encontraron usuarios registrados.")
     else
       Enum.each(usuarios, fn linea ->
         [id, nombre, rol] = String.split(linea, ",")
@@ -77,7 +77,7 @@ defmodule HackathonApp.Services.GestionUsuarios do
            uid == to_string(id)
          end) do
       nil ->
-        IO.puts("No se encontró el usuario con ID #{id}.")
+        IO.puts("No existe un usuario con el ID #{id}.")
         nil
 
       linea ->
@@ -137,7 +137,8 @@ defmodule HackathonApp.Services.GestionUsuarios do
             nil
           end
 
-        _ -> nil
+        _ ->
+          nil
       end
     end)
   end
