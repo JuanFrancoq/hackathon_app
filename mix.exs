@@ -1,6 +1,8 @@
 defmodule HackathonApp.MixProject do
   use Mix.Project
 
+  #Cofiguracion principal del proyecto
+
   def project do
     [
       app: :hackathon_app,
