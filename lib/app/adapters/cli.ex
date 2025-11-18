@@ -16,7 +16,6 @@ defmodule HackathonApp.Adapters.CLI do
   # INICIO
   # ==========================================================
   def start() do
-    # Inicia el Agent de chat
     {:ok, _pid} = HackathonApp.Services.GestionChat.start_link(nil)
     IO.puts("=== Sistema Hackathon ===")
     nombre_usuario = IO.gets("Ingresa tu nombre: ") |> String.trim()
@@ -231,10 +230,13 @@ defmodule HackathonApp.Adapters.CLI do
 
       input == "/salir" -> loop(nombre_usuario)
 
-      input == "/help" -> mostrar_ayuda_teams(); teams_loop(nombre_usuario)
+      input == "/help" ->
+        mostrar_ayuda_teams()
+        teams_loop(nombre_usuario)
 
       true ->
-        IO.puts("Comando no reconocido."); teams_loop(nombre_usuario)
+        IO.puts("Comando no reconocido.")
+        teams_loop(nombre_usuario)
     end
   end
 
