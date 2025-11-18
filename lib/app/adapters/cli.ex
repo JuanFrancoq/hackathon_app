@@ -131,12 +131,12 @@ defmodule HackathonApp.Adapters.CLI do
         GestionUsuarios.listar_por_rol("participante")
         participante_loop(nombre_usuario)
 
-      String.starts_with?(input, "/join_equipo ") ->
+      String.starts_with?(input, "/join ") ->
         case String.split(input, " ") do
-          ["/join_equipo", usuario_id, equipo_id] ->
+          ["/join", usuario_id, equipo_id] ->
             GestionUsuarios.asignar_a_equipo(usuario_id, equipo_id)
           _ ->
-            IO.puts("Uso correcto: /join_equipo <usuario_id> <equipo_id>")
+            IO.puts("Uso correcto: /join <usuario_id> <equipo_id>")
         end
         participante_loop(nombre_usuario)
 
@@ -146,7 +146,7 @@ defmodule HackathonApp.Adapters.CLI do
         IO.puts("""
         === Comandos de Participante ===
         /listar                   → Ver todos los participantes
-        /join_equipo <uid> <eid> → Unirse a un equipo
+        /join <uid> <eid>         → Unirse a un equipo
         /salir                    → Volver al menú de usuarios
         """)
         participante_loop(nombre_usuario)
