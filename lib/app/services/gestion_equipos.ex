@@ -1,63 +1,98 @@
 defmodule HackathonApp.Services.GestionEquipos do
   @moduledoc """
-  Servicio para gestionar equipos: crear, listar, eliminar y agregar miembros.
-  Implementa persistencia concurrente con Agent y archivo 'equipos.csv'.
+  Gestión de equipos: crear, listar, eliminar y agregar miembros.
+  Puede trabajar de manera local (archivo) o concurrente (Agent).
   """
 
   use Agent
   alias HackathonApp.Domain.Equipo
   alias HackathonApp.Adapters.RepositorioArchivo
-  alias HackathonApp.Services.GestionUsuarios
 
   @archivo "equipos.csv"
 
   # ==========================================================
-  # AGENT PARA PERSISTENCIA CONCURRENTE
+  # START LINK (para servidor)
   # ==========================================================
   def start_link(_) do
     Agent.start_link(fn ->
       case RepositorioArchivo.leer_datos(@archivo) do
         {:ok, datos} -> datos
-        {:error, _razon} -> []   # inicia vacío si falla
-        datos when is_list(datos) -> datos  # en caso de que devuelva directamente la lista
+        {:error, _} -> []
+        datos when is_list(datos) -> datos
       end
     end, name: __MODULE__)
+  end
+
+  # ==========================================================
+  # HELPER para persistencia híbrida
+  # ==========================================================
+  defp guardar_datos_concurrente(nuevos_datos) do
+    if Process.whereis(__MODULE__) do
+      Agent.update(__MODULE__, fn _ ->
+        RepositorioArchivo.guardar_datos(@archivo, nuevos_datos)
+        nuevos_datos
+      end)
+    else
+      RepositorioArchivo.guardar_datos(@archivo, nuevos_datos)
+    end
+  end
+
+  defp leer_datos() do
+    if Process.whereis(__MODULE__) do
+      Agent.get(__MODULE__, & &1)
+    else
+      case RepositorioArchivo.leer_datos(@archivo) do
+        {:ok, datos} -> datos
+        datos when is_list(datos) -> datos
+        _ -> []
+      end
+    end
   end
 
   # ==========================================================
   # Crear equipo
   # ==========================================================
   def crear_equipo(equipo_id, nombre, miembros) do
-    Agent.get_and_update(__MODULE__, fn equipos ->
-      # Validar que los miembros existen
-      miembros_validos =
-        Enum.filter(miembros, fn nombre_usuario ->
-          GestionUsuarios.obtener_usuario_por_nombre(nombre_usuario) != nil
-        end)
+    equipos_actuales = leer_datos()
 
-      existe = Enum.any?(equipos, fn linea ->
+    existe =
+      Enum.any?(equipos_actuales, fn linea ->
         [id | _] = String.split(linea, ",")
         id == to_string(equipo_id)
       end)
 
-      if existe do
-        IO.puts("Ya existe un equipo con ID #{equipo_id}.")
-        {nil, equipos}
-      else
-        equipo = Equipo.nuevo(equipo_id, nombre, miembros_validos)
-        linea = "#{equipo.equipo_id},#{equipo.nombre},#{Enum.join(equipo.miembros, "|")}"
-        RepositorioArchivo.guardar_datos(@archivo, equipos ++ [linea])
-        IO.puts("Equipo '#{nombre}' creado correctamente con miembros válidos: #{Enum.join(miembros_validos, ", ")}")
-        {equipo, equipos ++ [linea]}
-      end
-    end)
+    if existe do
+      IO.puts("Ya existe un equipo con ID #{equipo_id}.")
+    else
+      # Filtrar solo miembros existentes
+      miembros_validos =
+        Enum.filter(miembros, fn m ->
+          HackathonApp.Services.GestionUsuarios.obtener_usuario_por_nombre(m) != nil
+        end)
+
+      equipo = %Equipo{
+        equipo_id: equipo_id,
+        nombre: nombre,
+        miembros: miembros_validos
+      }
+
+      nueva_linea = "#{equipo.equipo_id},#{equipo.nombre},#{Enum.join(equipo.miembros, "|")}"
+      guardar_datos_concurrente(equipos_actuales ++ [nueva_linea])
+
+      IO.puts(
+        "Equipo '#{nombre}' creado correctamente con miembros válidos: #{Enum.join(miembros_validos, ", ")}"
+      )
+
+      equipo
+    end
   end
 
   # ==========================================================
   # Listar equipos
   # ==========================================================
   def listar_equipos() do
-    equipos = Agent.get(__MODULE__, & &1)
+    equipos = leer_datos()
+
     IO.puts("=== Equipos registrados ===")
 
     if Enum.empty?(equipos) do
@@ -65,9 +100,10 @@ defmodule HackathonApp.Services.GestionEquipos do
     else
       Enum.each(equipos, fn linea ->
         case String.split(linea, ",") do
-          [equipo_id, nombre, miembros_str] ->
+          [id, nombre, miembros_str] ->
             miembros = String.split(miembros_str, "|")
-            IO.puts("- #{nombre} [ID: #{equipo_id}] (#{Enum.join(miembros, ", ")})")
+            IO.puts("- #{nombre} [ID: #{id}] (#{Enum.join(miembros, ", ")})")
+
           _ ->
             IO.puts("Línea inválida: #{linea}")
         end
@@ -79,58 +115,56 @@ defmodule HackathonApp.Services.GestionEquipos do
   # Eliminar equipo
   # ==========================================================
   def eliminar_equipo(equipo_id) do
-    Agent.get_and_update(__MODULE__, fn equipos ->
-      nuevos = Enum.reject(equipos, fn linea ->
+    equipos = leer_datos()
+
+    nuevos =
+      Enum.reject(equipos, fn linea ->
         [id | _] = String.split(linea, ",")
         id == to_string(equipo_id)
       end)
 
-      if length(nuevos) < length(equipos) do
-        RepositorioArchivo.guardar_datos(@archivo, nuevos)
-        IO.puts("Equipo #{equipo_id} eliminado.")
-      else
-        IO.puts("No se encontró el equipo con ID #{equipo_id}.")
-      end
-
-      { :ok, nuevos }
-    end)
+    if length(nuevos) < length(equipos) do
+      guardar_datos_concurrente(nuevos)
+      IO.puts("Equipo #{equipo_id} eliminado.")
+    else
+      IO.puts("No se encontró el equipo con ID #{equipo_id}.")
+    end
   end
 
   # ==========================================================
   # Agregar miembro a equipo
   # ==========================================================
   def agregar_miembro_a_equipo(equipo_id, nombre_usuario) do
-    Agent.get_and_update(__MODULE__, fn equipos ->
-      case Enum.find(equipos, fn linea ->
-             [id | _] = String.split(linea, ",")
-             id == to_string(equipo_id)
-           end) do
-        nil ->
-          IO.puts("No se encontró un equipo con ID #{equipo_id}.")
-          { :error, equipos }
+    equipos = leer_datos()
 
-        linea ->
-          # Validar que el usuario exista
-          if GestionUsuarios.obtener_usuario_por_nombre(nombre_usuario) == nil do
-            IO.puts("No se puede agregar '#{nombre_usuario}': usuario no existe.")
-            { :error, equipos }
+    case Enum.find(equipos, fn linea ->
+           [id | _] = String.split(linea, ",")
+           id == to_string(equipo_id)
+         end) do
+      nil ->
+        IO.puts("No se encontró un equipo con ID #{equipo_id}.")
+
+      linea ->
+        # Validar que usuario exista
+        if HackathonApp.Services.GestionUsuarios.obtener_usuario_por_nombre(nombre_usuario) == nil do
+          IO.puts("El usuario #{nombre_usuario} no existe.")
+        else
+          [id, nombre_equipo, miembros_str] = String.split(linea, ",")
+          miembros = String.split(miembros_str, "|")
+
+          if nombre_usuario in miembros do
+            IO.puts("El usuario #{nombre_usuario} ya pertenece al equipo #{nombre_equipo}.")
           else
-            [id, nombre_equipo, miembros_str] = String.split(linea, ",")
-            miembros = String.split(miembros_str, "|")
+            nuevos_miembros = miembros ++ [nombre_usuario]
+            nueva_linea = "#{id},#{nombre_equipo},#{Enum.join(nuevos_miembros, "|")}"
 
-            if nombre_usuario in miembros do
-              IO.puts("El usuario #{nombre_usuario} ya pertenece al equipo #{nombre_equipo}.")
-              { :error, equipos }
-            else
-              nuevos_miembros = miembros ++ [nombre_usuario]
-              nueva_linea = "#{id},#{nombre_equipo},#{Enum.join(nuevos_miembros, "|")}"
-              nuevos_datos = Enum.map(equipos, fn l -> if l == linea, do: nueva_linea, else: l end)
-              RepositorioArchivo.guardar_datos(@archivo, nuevos_datos)
-              IO.puts("#{nombre_usuario} se unió al equipo #{nombre_equipo}.")
-              { :ok, nuevos_datos }
-            end
+            nuevos_datos =
+              Enum.map(equipos, fn l -> if l == linea, do: nueva_linea, else: l end)
+
+            guardar_datos_concurrente(nuevos_datos)
+            IO.puts("#{nombre_usuario} se unió al equipo #{nombre_equipo}.")
           end
-      end
-    end)
+        end
+    end
   end
 end
