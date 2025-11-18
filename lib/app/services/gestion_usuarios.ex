@@ -1,6 +1,6 @@
 defmodule HackathonApp.Services.GestionUsuarios do
   @moduledoc """
-  Servicio para gestionar usuarios: creación, listado, filtrado y asignación a equipos.
+  Servicio para gestionar usuarios: creación, listado, filtrado, asignación a equipos y eliminación.
   Soporta roles: participante y mentor.
   """
 
@@ -53,7 +53,7 @@ defmodule HackathonApp.Services.GestionUsuarios do
     end
   end
 
-  # Filtrar por rol
+  # Listar usuarios por rol
   def listar_por_rol(rol_buscado) do
     usuarios = RepositorioArchivo.leer_datos(@archivo)
 
@@ -75,7 +75,7 @@ defmodule HackathonApp.Services.GestionUsuarios do
     end
   end
 
-  # Obtener un usuario
+  # Obtener usuario por ID
   def obtener_usuario(id) do
     usuarios = RepositorioArchivo.leer_datos(@archivo)
 
@@ -93,6 +93,24 @@ defmodule HackathonApp.Services.GestionUsuarios do
     end
   end
 
+  # Obtener usuario por nombre
+  def obtener_usuario_por_nombre(nombre) do
+    usuarios = RepositorioArchivo.leer_datos(@archivo)
+
+    Enum.find_value(usuarios, fn linea ->
+      case String.split(linea, ",") do
+        [id, nombre_usuario, rol] ->
+          if String.downcase(nombre_usuario) == String.downcase(nombre) do
+            %{id: id, nombre: nombre_usuario, rol: rol}
+          else
+            nil
+          end
+
+        _ -> nil
+      end
+    end)
+  end
+
   # Asignar usuario a equipo (solo participantes)
   def asignar_a_equipo(usuario_id, equipo_id) do
     case obtener_usuario(usuario_id) do
@@ -105,9 +123,7 @@ defmodule HackathonApp.Services.GestionUsuarios do
       %Usuario{nombre: nombre, rol: "participante"} ->
         equipos = RepositorioArchivo.leer_datos("equipos.csv")
 
-        case Enum.find(equipos, fn linea ->
-               String.starts_with?(linea, "#{equipo_id},")
-             end) do
+        case Enum.find(equipos, fn linea -> String.starts_with?(linea, "#{equipo_id},") end) do
           nil ->
             IO.puts("No existe un equipo con ID #{equipo_id}.")
 
@@ -131,22 +147,25 @@ defmodule HackathonApp.Services.GestionUsuarios do
     end
   end
 
-  # Obtener usuario por nombre
-  def obtener_usuario_por_nombre(nombre) do
+  # ==========================================================
+  # NUEVO: Eliminar usuario por ID o nombre
+  # ==========================================================
+  def eliminar_usuario(id_o_nombre) do
     usuarios = RepositorioArchivo.leer_datos(@archivo)
 
-    Enum.find_value(usuarios, fn linea ->
-      case String.split(linea, ",") do
-        [id, nombre_usuario, rol] ->
-          if String.downcase(nombre_usuario) == String.downcase(nombre) do
-            %{id: id, nombre: nombre_usuario, rol: rol}
-          else
-            nil
-          end
+    {filtrados, eliminados} =
+      Enum.split_with(usuarios, fn linea ->
+        [uid, uname | _] = String.split(linea, ",")
+        uid != to_string(id_o_nombre) and String.downcase(uname) != String.downcase(id_o_nombre)
+      end)
 
-        _ ->
-          nil
-      end
-    end)
+    if length(usuarios) == length(filtrados) do
+      IO.puts("No se encontró ningún usuario con ID o nombre '#{id_o_nombre}'.")
+      :error
+    else
+      RepositorioArchivo.guardar_datos(@archivo, filtrados)
+      IO.puts("Usuario(s) '#{id_o_nombre}' eliminado(s) correctamente.")
+      :ok
+    end
   end
 end
