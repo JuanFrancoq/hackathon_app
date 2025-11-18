@@ -46,6 +46,8 @@ defmodule HackathonApp.Services.GestionChat do
     end)
   end
 
+  # Elimina un mensaje por su ID
+
   def eliminar_mensaje(id_mensaje) do
     mensajes = RepositorioArchivo.leer_datos(@archivo)
 
