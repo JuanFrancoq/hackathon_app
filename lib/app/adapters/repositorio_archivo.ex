@@ -27,17 +27,18 @@ defmodule HackathonApp.Adapters.RepositorioArchivo do
   # LEER (también desde el servidor)
   # ==============================================================
   def leer_datos(nombre_archivo) do
-    mensaje = {:leer, nombre_archivo}
+  mensaje = {:leer, nombre_archivo}
 
-    case call_servidor(mensaje) do
-      {:ok, lineas} ->
-        lineas
-
-      {:error, :no_conectado} ->
-        IO.puts("ERROR: No se pudo contactar al nodo servidor #{@nombre_nodo_servidor}")
-        []
-    end
+  case call_servidor(mensaje) do
+    {:ok, lineas} -> lineas
+    {:error, :no_conectado} ->
+      IO.puts("ERROR: No se pudo contactar al nodo servidor #{@nombre_nodo_servidor}")
+      []
+    {:error, :no_respuesta} ->
+      IO.puts("ERROR: El servidor no respondió a tiempo")
+      []
   end
+end
 
   # ==============================================================
   # Enviar mensaje al servidor
